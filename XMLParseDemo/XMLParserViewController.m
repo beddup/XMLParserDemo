@@ -10,6 +10,8 @@
 #import "CD.h"
 #import "CDCell.h"
 
+NSString *const XMLURL = @"http://www.w3school.com.cn/example/xmle/cd_catalog.xml";
+
 @interface XMLParserViewController ()<NSXMLParserDelegate,UITableViewDataSource,UITableViewDelegate>
 
 @property(strong, nonatomic)NSArray* parserResult;
@@ -32,9 +34,21 @@
 }
 
 -(void)startParse:(id)sender{
-    [self parseXMLFile];
+//    [self parseXMLFile];
+    [self fetchXMLData];
 }
 
+-(void)fetchXMLData
+{
+    NSURLSession *session =[NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
+    NSURL *url = [NSURL URLWithString:XMLURL];
+    NSURLSessionDataTask *dataTask = [session dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        NSXMLParser *parse = [[NSXMLParser alloc] initWithData:data];
+        parse.delegate = self;
+        [parse parse];
+    }];
+    [dataTask resume];
+}
 -(void)parseXMLFile
 {
     NSString* path = [[NSBundle mainBundle] pathForResource:@"view-source_www.w3school.com.cn_example_xmle_cd_catalog" ofType:@"xml"];
@@ -60,14 +74,12 @@
     return 80;
 }
 #pragma mark - ParseDelegate
-
 static NSMutableArray* elementObjectStack = nil;
 static NSMutableString* currentString =nil;
 
 - (void)parserDidStartDocument:(NSXMLParser *)parser
 {
     NSLog(@"started");
-
     elementObjectStack = [@[] mutableCopy];
 }
 
@@ -97,7 +109,6 @@ static NSMutableString* currentString =nil;
     if (elementClass)
     {
         elementObject = [[elementClass alloc] init];
-
     }else
     {
         elementObject = [@[] mutableCopy];
@@ -118,6 +129,7 @@ static NSMutableString* currentString =nil;
     }else{
         elementObject = [elementObjectStack lastObject];
     }
+//    [tagsStack removeLastObject];
     [elementObjectStack removeLastObject];
 
     id lastElement = [elementObjectStack lastObject];
