@@ -42,12 +42,14 @@ NSString *const XMLURL = @"http://www.w3school.com.cn/example/xmle/cd_catalog.xm
 {
     NSURLSession *session =[NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
     NSURL *url = [NSURL URLWithString:XMLURL];
-    NSURLSessionDataTask *dataTask = [session dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-        NSXMLParser *parse = [[NSXMLParser alloc] initWithData:data];
+    NSURLSessionDownloadTask *task = [session downloadTaskWithURL:url completionHandler:^(NSURL * _Nullable location, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+
+        NSXMLParser *parse = [[NSXMLParser alloc] initWithContentsOfURL:location];
         parse.delegate = self;
         [parse parse];
+
     }];
-    [dataTask resume];
+    [task resume];
 }
 -(void)parseXMLFile
 {
@@ -73,6 +75,7 @@ NSString *const XMLURL = @"http://www.w3school.com.cn/example/xmle/cd_catalog.xm
 -(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
     return 80;
 }
+
 #pragma mark - ParseDelegate
 static NSMutableArray* elementObjectStack = nil;
 static NSMutableString* currentString =nil;
@@ -86,11 +89,14 @@ static NSMutableString* currentString =nil;
 - (void)parserDidEndDocument:(NSXMLParser *)parser
 {
     NSLog(@"end");
-    self.parserResult = [elementObjectStack lastObject];
-    [self.tableView reloadData];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.parserResult = [elementObjectStack lastObject];
+        [self.tableView reloadData];
+    });
 }
 - (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string
 {
+
     if (!currentString) {
         currentString = [string mutableCopy];
     }else{
