@@ -9,6 +9,7 @@
 #import "XMLParserViewController.h"
 #import "CD.h"
 #import "CDCell.h"
+#import <objc/runtime.h>
 
 NSString *const XMLURL = @"http://www.w3school.com.cn/example/xmle/cd_catalog.xml";
 
@@ -40,10 +41,10 @@ NSString *const XMLURL = @"http://www.w3school.com.cn/example/xmle/cd_catalog.xm
 
 -(void)fetchXMLData
 {
+
     NSURLSession *session =[NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
     NSURL *url = [NSURL URLWithString:XMLURL];
     NSURLSessionDownloadTask *task = [session downloadTaskWithURL:url completionHandler:^(NSURL * _Nullable location, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-
         NSXMLParser *parse = [[NSXMLParser alloc] initWithContentsOfURL:location];
         parse.delegate = self;
         [parse parse];
@@ -94,22 +95,14 @@ static NSMutableString* currentString =nil;
         [self.tableView reloadData];
     });
 }
-- (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string
-{
 
-    if (!currentString) {
-        currentString = [string mutableCopy];
-    }else{
-        [currentString appendString:string];
-    }
-}
-
+// NSXMLParser 解析过程重复以下不走：确定元素开始后，告诉delegate，然后每次发现字符，就告诉delegate（所有要确定元素字符串，可能需要多次合成NSString），最后确定元素结束后，告诉delegate。
 - (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(nullable NSString *)namespaceURI qualifiedName:(nullable NSString *)qName attributes:(NSDictionary<NSString *, NSString *> *)attributeDict
 {
 
     const char* elementNameCString = [elementName cStringUsingEncoding:NSUTF8StringEncoding];
 
-    Class elementClass = objc_getClass(elementNameCString);
+    Class elementClass =objc_getClass(elementNameCString);
     id elementObject = nil;
 
     if (elementClass)
@@ -123,6 +116,17 @@ static NSMutableString* currentString =nil;
     [elementObjectStack addObject:elementObject];
 }
 
+- (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string
+{
+
+    if (!currentString) {
+        currentString = [string mutableCopy];
+    }else{
+        [currentString appendString:string];
+    }
+}
+
+
 - (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(nullable NSString *)namespaceURI qualifiedName:(nullable NSString *)qName
 {
     if (elementObjectStack.count == 1) {
@@ -135,7 +139,6 @@ static NSMutableString* currentString =nil;
     }else{
         elementObject = [elementObjectStack lastObject];
     }
-//    [tagsStack removeLastObject];
     [elementObjectStack removeLastObject];
 
     id lastElement = [elementObjectStack lastObject];
@@ -146,7 +149,7 @@ static NSMutableString* currentString =nil;
     }
     else
     {
-        // if it is other class
+        // 因为我事先知道数据结构，并建立了一个类（CD），所以可以直接调用属性。实际中这样处理并不好，因为如果有多种数据，就需要建立多个类。比较科学的处理应该是在解析中动态的创建类，添加属性
         NSString *selString = [NSString stringWithFormat:@"set%@:",[elementName capitalizedString]];
         const char* selCString = [selString cStringUsingEncoding:NSUTF8StringEncoding];
         SEL selector = sel_registerName(selCString);
